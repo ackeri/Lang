@@ -136,15 +136,41 @@ just a name bound to such an expression. Internal names inside a shape type
 are required (so `object n` is never confused with a type) but carry no
 meaning beyond documentation.
 
-### What a type guarantees **(open)**
+### What a type guarantees
 
 A function body is checked against its parameters' declared types, not the
-concrete classes passed in (that is why an unconstrained parameter is
-useless). So a type must say which operations it guarantees. The natural
-answer is "the calls its tests make": `Number`'s tests use `add`, `equals`,
-`zero` and `one`, so a body with `a is Number` may call them. Still to work
-out: what a guaranteed call returns (for example, what is known about the
-result of `a add b` beyond what the tests needed).
+concrete classes passed in. This keeps dispatch a compile-time question. A
+type's guarantees come from its tests:
+
+- Every call a test makes on `Self` values is a guaranteed operation, with the
+  shape and argument types used in that call.
+- The result of a guaranteed call is known only through `is` assertions in the
+  tests. An unasserted result has no requirements, just like a parameter with
+  no `is`.
+
+A pure signature declaration is therefore just a test that only asserts types:
+
+```
+type Number:
+    test signatures for a, b in examples:
+        (a add b) is Self
+        (a equals b) is Bool
+    test commutative for a, b in examples:
+        check (a add b) equals (b add a)
+```
+
+Inside a type, `Self` names the class being tested.
+
+### Code generation for generic functions
+
+Bodies are type-checked once, against declared types. Code is generated per
+concrete class (monomorphization), so the C output knows every value's size
+and every call target, and there is no runtime dispatch.
+
+- A function value of a generic function must name a concrete instance; which
+  one is chosen by narrowing, and an undecidable choice is an ambiguity error.
+- Values whose class is only known at runtime (for example a list mixing
+  classes) would need boxing and runtime dispatch. Not supported for now.
 
 ## Types
 
