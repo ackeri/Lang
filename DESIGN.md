@@ -51,6 +51,11 @@ write "hello" to "out.txt"
 push 1 onto list
 ```
 
+- After the verb, positional arguments come first (subject, if not already
+  given before the verb, then object), followed by `label argument` pairs in
+  any order. So `3 add 4` and `add 3 4` are the same call.
+- An expression statement must be a call: interpretations that are bare values
+  (such as mentioning a function without calling it) are dropped there.
 - Nested calls must be parenthesized (for now). Stronger inference may relax
   this later, but parens-required is the starting point:
 
@@ -271,6 +276,22 @@ output) rather than a separate Python interpreter for compile-time code.
 - Memory management details beyond heaps passed as context arguments.
 - How a class is declared (fields, layout).
 - Whether paren-free nesting is ever allowed, and under what rules.
+
+## Bootstrap compiler status
+
+Milestone 1 is implemented in `langc/` (run with `python3 -m langc file.lang
+--run`; tests with `python3 -m unittest discover -s tests -t .`).
+
+- Classes: `Int` (64-bit, wrapping), `Text` (string literals only), `Nothing`.
+- Built-ins: `print x` (Int or Text), `a add b`, `subtract a from b`,
+  `multiply a by b`, `divide a by b`.
+- Function values compile to C function pointers; generic code is not needed
+  yet because all types are concrete.
+- Not yet: local variables, conditionals and loops, classes, test-defined
+  types, `is` in bodies, context arguments, literal parser registration.
+  Integers are recognised by a built-in literal parser in the resolver, the
+  same hook user-registered parsers will use.
+- The `.lang` file extension is a placeholder.
 
 ## Milestones
 
