@@ -68,6 +68,13 @@ class Return:
 
 
 @dataclass
+class Bind:
+    name: str
+    items: list
+    line: int
+
+
+@dataclass
 class ExprStmt:
     items: list
     line: int
@@ -137,6 +144,12 @@ class _Parser:
             items = self.items_until_newline()
             return Return(items, tok.line)
         items = self.items_until_newline()
+        if len(items) >= 2 and isinstance(items[1], Word) and items[1].text == "=":
+            if not isinstance(items[0], Word):
+                raise CompileError("can only bind a name with '='", tok.line)
+            if len(items) == 2:
+                raise CompileError(f"nothing to bind to '{items[0].text}'", tok.line)
+            return Bind(items[0].text, items[2:], tok.line)
         return ExprStmt(items, tok.line)
 
     def items_until_newline(self):

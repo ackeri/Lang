@@ -1,7 +1,7 @@
 """C code generation from the typed program."""
 
 from .builtins import RUNTIME
-from .resolve import Call, FnDecl, FnRef, Lit, TExprStmt, TReturn, VarRef, mangle
+from .resolve import Call, FnDecl, FnRef, Lit, TBind, TExprStmt, TReturn, VarRef, mangle
 from .types import TEXT, FnType
 
 
@@ -48,6 +48,9 @@ class CGen:
     def stmt(self, s):
         if isinstance(s, TReturn):
             return "    return;" if s.value is None else f"    return {self.expr(s.value)};"
+        if isinstance(s, TBind):
+            decl = f"{self.ctype(s.var.type)} " if s.new else ""
+            return f"    {decl}{s.var.cname} = {self.expr(s.value)};"
         assert isinstance(s, TExprStmt)
         return f"    {self.expr(s.expr)};"
 

@@ -39,8 +39,9 @@ General shape of a call:
 [subject] verb [object] (label argument)*
 ```
 
-- The subject may appear before the verb; no other argument may.
-- The subject, when present, always comes before the object.
+- The subject, when the function takes one, always comes immediately before
+  the verb, and is the only argument that may. (Allowing it after the verb as
+  well was tried and dropped: it added interpretations without good uses.)
 - Labels are not a fixed keyword list. Each function declares its own labels
   (usually prepositions: `to`, `from`, `into`, `by`, ...). Labels are ordinary
   identifiers, so `to` can still be a variable name elsewhere.
@@ -51,9 +52,8 @@ write "hello" to "out.txt"
 push 1 onto list
 ```
 
-- After the verb, positional arguments come first (subject, if not already
-  given before the verb, then object), followed by `label argument` pairs in
-  any order. So `3 add 4` and `add 3 4` are the same call.
+- After the verb, the object (if any) comes first, followed by
+  `label argument` pairs in any order.
 - An expression statement must be a call: interpretations that are bare values
   (such as mentioning a function without calling it) are dropped there.
 - Nested calls must be parenthesized (for now). Stronger inference may relax
@@ -103,6 +103,21 @@ on how permissive types are: stricter test-defined types narrow more.
 Functions may be overloaded by argument shape and by argument types. Further
 argument variation (optional, variadic, ...) comes later; context arguments
 are described below.
+
+## Local bindings
+
+```
+x = 3 add 4
+x = x add 1
+```
+
+- `name = expression` binds a local. `=` is recognised only as the second word
+  of a statement, and needs spaces around it (`x=3` is a single word).
+- The first binding of a name declares it with the value's type; later
+  bindings of the same name in the same scope assign to it and must have the
+  same type.
+- Top-level bindings belong to the program's entry point and are not visible
+  inside functions.
 
 ## Function definitions
 
@@ -287,7 +302,7 @@ Milestone 1 is implemented in `langc/` (run with `python3 -m langc file.lang
   `multiply a by b`, `divide a by b`.
 - Function values compile to C function pointers; generic code is not needed
   yet because all types are concrete.
-- Not yet: local variables, conditionals and loops, classes, test-defined
+- Not yet: conditionals and loops, classes, test-defined
   types, `is` in bodies, context arguments, literal parser registration.
   Integers are recognised by a built-in literal parser in the resolver, the
   same hook user-registered parsers will use.

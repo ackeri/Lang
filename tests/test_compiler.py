@@ -30,8 +30,40 @@ class Examples(unittest.TestCase):
 
 
 class Programs(unittest.TestCase):
-    def test_subject_before_or_after_verb(self):
-        self.assertEqual(run("print (2 add 3)\nprint (add 2 3)\n"), "5\n5\n")
+    def test_subject_before_verb(self):
+        self.assertEqual(run("print (2 add 3)\n"), "5\n")
+
+    def test_local_binding(self):
+        src = """
+        fn cube object n is Int -> Int:
+            sq = multiply n by n
+            return multiply sq by n
+        x = 2 add 1
+        print (cube x)
+        x = x add 1
+        print x
+        """
+        self.assertEqual(run(src), "27\n4\n")
+
+    def test_bind_function_value(self):
+        src = """
+        fn square object n is Int -> Int:
+            return multiply n by n
+        f = square
+        print (f 6)
+        """
+        self.assertEqual(run(src), "36\n")
+
+    def test_subject_or_object_overload(self):
+        src = """
+        fn show object x is Int:
+            print x
+        fn show subject x is Int:
+            print (x add 100)
+        show 3
+        3 show
+        """
+        self.assertEqual(run(src), "3\n103\n")
 
     def test_labels_in_any_order(self):
         src = """
@@ -122,17 +154,17 @@ class Errors(unittest.TestCase):
             "ambiguous",
         )
 
-    def test_subject_vs_object_overload(self):
-        self.assertError(
-            """
-            fn show object x is Int:
-                print x
-            fn show subject x is Int:
-                print x
-            show 3
-            """,
-            "ambiguous",
-        )
+    def test_subject_after_verb(self):
+        self.assertError("print (add 2 3)\n", "no interpretation")
+
+    def test_rebind_with_other_type(self):
+        self.assertError('x = 1\nx = "a"\n', "cannot assign Text")
+
+    def test_bind_nothing(self):
+        self.assertError("x = print 1\n", "no value")
+
+    def test_top_level_bindings_not_visible_in_functions(self):
+        self.assertError("y = 1\nfn f -> Int:\n    return y\n", "unknown name 'y'")
 
     def test_unknown_name(self):
         self.assertError("print nope\n", "unknown name 'nope'")

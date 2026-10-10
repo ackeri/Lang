@@ -14,7 +14,6 @@ fn area of w is Int; by h is Int -> Int:
 
 greet
 print (3 add 4)
-print (add 3 4)
 print (subtract 3 from 10)
 print (square 5)
 print (twice square to 3)

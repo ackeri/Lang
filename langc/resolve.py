@@ -107,6 +107,13 @@ class TReturn:
 
 
 @dataclass(eq=False)
+class TBind:
+    var: Var
+    value: object
+    new: bool  # first binding of this name (declares the C variable)
+
+
+@dataclass(eq=False)
 class TExprStmt:
     expr: object
 
@@ -176,13 +183,16 @@ class Resolver:
             self.globals.add(decl.name, decl)
 
     def run(self, prog):
+        # Top-level bindings belong to the program's entry point and are not
+        # visible inside functions.
+        main_scope = Scope(self.globals)
         for decl in prog.decls:
             if isinstance(decl, S.FnDef):
                 self.fn_def(decl)
             elif isinstance(decl, S.Return):
                 raise CompileError("return outside a function", decl.line)
             else:
-                self.program.main.append(self.statement(decl, self.globals, None))
+                self.program.main.append(self.statement(decl, main_scope, None))
         return self.program
 
     # -- types
@@ -252,9 +262,29 @@ class Resolver:
             if ret == NOTHING:
                 raise CompileError("this function returns nothing", stmt.line)
             return TReturn(self.expect_one(stmt.items, scope, ret, stmt.line))
+        if isinstance(stmt, S.Bind):
+            return self.bind(stmt, scope)
         # An expression statement must do something: a bare value is dropped.
         cands = [c for c in self.resolve_seq(stmt.items, scope, {}) if isinstance(c, Call)]
         return TExprStmt(self.pick(cands, stmt.items, scope, stmt.line, None))
+
+    def bind(self, stmt, scope):
+        value = self.pick(
+            self.resolve_seq(stmt.items, scope, {}), stmt.items, scope, stmt.line, None
+        )
+        if value.type == NOTHING:
+            raise CompileError(f"'{S.describe(stmt.items)}' has no value to bind", stmt.line)
+        existing = [b for b in scope.names.get(stmt.name, []) if isinstance(b, Var)]
+        if existing:
+            var = existing[0]
+            if var.type != value.type:
+                raise CompileError(
+                    f"'{stmt.name}' is {var.type}; cannot assign {value.type}", stmt.line
+                )
+            return TBind(var, value, new=False)
+        var = Var(stmt.name, value.type, f"v_{mangle(stmt.name)}")
+        scope.add(stmt.name, var)
+        return TBind(var, value, new=True)
 
     def expect_one(self, items, scope, expected, line):
         cands = self.resolve_seq(items, scope, {})
@@ -349,12 +379,13 @@ class Resolver:
                 yield (b if isinstance(b, FnDecl) else VarRef(b)), b.type
 
     def calls(self, callee, shape, before, after, scope, memo):
-        """Interpretations of `before verb after` as a call with this shape."""
-        if before and "subject" not in shape.labels:
+        """Interpretations of `before verb after` as a call with this shape.
+
+        The subject, if any, must come before the verb.
+        """
+        if bool(before) != ("subject" in shape.labels):
             return []
-        slots = [l for l in ("subject", "object") if l in shape.labels]
-        if before:
-            slots.remove("subject")
+        slots = ["object"] if "object" in shape.labels else []
         named = [l for l in shape.labels if l not in ("subject", "object")]
         results = []
         for assignment in _assign(after, slots, named):
@@ -376,7 +407,7 @@ class Resolver:
 def _assign(items, slots, labels):
     """Ways to split the items after a verb into arguments.
 
-    Positional arguments (subject, then object) come first, then
+    The positional argument (the object) comes first, then
     `label item` pairs in any order.
     """
     out = []
