@@ -102,19 +102,22 @@ are described below.
 ## Function definitions
 
 ```
-fn add subject a is Number, object b is Number -> Number:
+fn add subject a is Number; object b is Number -> Number:
     return a plus b
 
-fn write object msg is Text, to path is Text:
+fn write object msg is Text, Printable; to path is Text:
     ...
 ```
 
-- Each parameter is `label name [is Type]`. The label is the external name; the
-  name is the internal name used in the body.
+- Each parameter is `label [context] name [is Type, Type, ...]`. The label is
+  the external name; the name is the internal name used in the body.
+- Parameters are separated by `;`. Commas separate the types in an `is` list;
+  a value must belong to every listed type (the union of their tests).
 - Parameter types use the same `is` syntax as everywhere else, written inline
   in the header. `is` statements in a body remain available for locals.
-- A parameter with no `is` is unconstrained. **(open)** Whether that means
-  "generic, checked per use when monomorphized" or is an error.
+- A parameter with no `is` has no requirements. That is legal but nearly
+  useless: the body can do nothing with it except pass it to other
+  unconstrained parameters or return it.
 - Return type follows `->`.
 - Functions are first-class values.
 
@@ -123,7 +126,7 @@ fn write object msg is Text, to path is Text:
 A shape type is a function header without a body:
 
 ```
-fn apply object f is (fn object n is Number -> Number), to x is Number -> Number:
+fn apply object f is (fn object n is Number -> Number); to x is Number -> Number:
     return f x
 ```
 
@@ -133,12 +136,15 @@ just a name bound to such an expression. Internal names inside a shape type
 are required (so `object n` is never confused with a type) but carry no
 meaning beyond documentation.
 
-### Combining types **(open)**
+### What a type guarantees **(open)**
 
-Since a type is a set of tests, the intersection of two types is just the
-union of their tests. Something like `n is Number and Printable` would fall
-out naturally and avoids needing a comma (which already separates
-parameters).
+A function body is checked against its parameters' declared types, not the
+concrete classes passed in (that is why an unconstrained parameter is
+useless). So a type must say which operations it guarantees. The natural
+answer is "the calls its tests make": `Number`'s tests use `add`, `equals`,
+`zero` and `one`, so a body with `a is Number` may call them. Still to work
+out: what a guaranteed call returns (for example, what is known about the
+result of `a add b` beyond what the tests needed).
 
 ## Types
 
@@ -169,6 +175,7 @@ type Number:
 
 `is` is an ordinary built-in function, called with normal call syntax.
 
+- `x is Number, Printable` asserts every listed type.
 - `x is Number` where `x` is a value tests the class of `x`;
   `NewClass is Number` where the subject is a class tests the class directly.
 - It does nothing at runtime; at compile time it asserts membership and narrows
@@ -205,15 +212,16 @@ enclosing lexical scope. Typical use: functions that allocate take a heap, and
 callers pass their own heap implicitly.
 
 ```
-fn push object x, onto list, in heap is Heap context
+fn push object x; onto list; in context heap is Heap:
     ...
 
-fn build in heap is Heap context
+fn build in context heap is Heap:
     push 1 onto l        -- heap supplied from build's own heap
 ```
 
-- The parameter must be tagged as a context argument in the definition, to
-  avoid matching too much. (Tag spelling is **provisional**.)
+- The parameter must be tagged `context` in the definition, to avoid matching
+  too much. The tag sits between the label and the name, since it is closely
+  tied to how the label is supplied.
 - Matching is by internal name **and** type. Two matching candidates are an
   ambiguity error.
 - Resolution is lexical and at compile time; at runtime it is just an ordinary
@@ -233,7 +241,6 @@ output) rather than a separate Python interpreter for compile-time code.
 
 ## Open questions
 
-- Spelling of the context-argument tag.
 - Optional and variadic arguments.
 - Memory management details beyond heaps passed as context arguments.
 - How a class is declared (fields, layout).
