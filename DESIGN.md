@@ -102,38 +102,43 @@ are described below.
 ## Function definitions
 
 ```
-fn add subject a, object b -> Number:
-    a is Number
-    b is Number
+fn add subject a is Number, object b is Number -> Number:
     return a plus b
 
-fn write object msg, to path:
-    msg is Text
-    path is Text
+fn write object msg is Text, to path is Text:
     ...
 ```
 
-- The label is the external name; the following identifier is the internal
-  name used in the body.
-- Parameter type constraints are written as `is` statements at the top of the
-  body and are lifted into the function's signature, so callers are checked
-  against them. **(provisional)**
+- Each parameter is `label name [is Type]`. The label is the external name; the
+  name is the internal name used in the body.
+- Parameter types use the same `is` syntax as everywhere else, written inline
+  in the header. `is` statements in a body remain available for locals.
+- A parameter with no `is` is unconstrained. **(open)** Whether that means
+  "generic, checked per use when monomorphized" or is an error.
+- Return type follows `->`.
 - Functions are first-class values.
 
 ### Function shapes as types
 
-A function-typed parameter declares its shape by reusing the function header
-syntax as a type expression:
+A shape type is a function header without a body:
 
 ```
-fn apply object f, to x:
-    f is (fn object Number -> Number)
-    x is Number
+fn apply object f is (fn object n is Number -> Number), to x is Number -> Number:
     return f x
 ```
 
-A named shape is just a name bound to such an expression. "Same shape as an
-existing function" (`f is like write`) is a possible later addition.
+Because definitions and shape types share one syntax, "same shape as an
+existing function" (`f is like write`) is easy to add later. A named shape is
+just a name bound to such an expression. Internal names inside a shape type
+are required (so `object n` is never confused with a type) but carry no
+meaning beyond documentation.
+
+### Combining types **(open)**
+
+Since a type is a set of tests, the intersection of two types is just the
+union of their tests. Something like `n is Number and Printable` would fall
+out naturally and avoids needing a comma (which already separates
+parameters).
 
 ## Types
 
@@ -174,6 +179,8 @@ type Number:
 write ((parse s) is Number) to f
 ```
 
+- Parameters in function headers use the same syntax: `object n is Number`.
+
 - Types are therefore compile-time values that can be passed as arguments.
 
 ## Literal parsers
@@ -198,10 +205,10 @@ enclosing lexical scope. Typical use: functions that allocate take a heap, and
 callers pass their own heap implicitly.
 
 ```
-fn push object x, onto list, in heap: context
+fn push object x, onto list, in heap is Heap context
     ...
 
-fn build in heap: context
+fn build in heap is Heap context
     push 1 onto l        -- heap supplied from build's own heap
 ```
 
@@ -226,8 +233,6 @@ output) rather than a separate Python interpreter for compile-time code.
 
 ## Open questions
 
-- Should parameter types also be allowed inline in the header, matching the
-  function-shape type syntax, or only as `is` statements in the body?
 - Spelling of the context-argument tag.
 - Optional and variadic arguments.
 - Memory management details beyond heaps passed as context arguments.
